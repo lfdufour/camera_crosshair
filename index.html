@@ -167,8 +167,14 @@
         const scale = video.videoWidth / window.innerWidth;
         const cropSize = cropSizeScreen * scale;
 
-        const cropX = (video.videoWidth - cropSize) / 2;
-        const cropY = (video.videoHeight - cropSize) / 2;
+        // Compute adjusted crop coordinates due to zoom
+        const visibleWidth = video.videoWidth / zoom;
+        const visibleHeight = video.videoHeight / zoom;
+        const visibleLeft = (video.videoWidth - visibleWidth) / 2;
+        const visibleTop = (video.videoHeight - visibleHeight) / 2;
+        
+        const cropX = visibleLeft + (visibleWidth - cropSize) / 2;
+        const cropY = visibleTop + (visibleHeight - cropSize) / 2;
 
         const croppedCanvas = document.createElement('canvas');
         const croppedCtx = croppedCanvas.getContext('2d');
