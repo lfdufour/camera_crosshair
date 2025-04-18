@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Camera with Crosshair and Upload v5</title>
+  <title>Camera with Crosshair and Upload BW</title>
   <style>
     body, html {
       margin: 0;
@@ -35,32 +35,33 @@
       position: absolute;
       top: 50%;
       left: 50%;
-      width: 60vw;
-      height: 60vw;
+      width: 50vw;
+      height: 50vw;
       transform: translate(-50%, -50%);
       border: 2px solid red;
       border-radius: 50%;
     }
 
-    #crosshair:after {
+    #crosshair::after,
+    #crosshair::before {
       content: "";
       position: absolute;
+      background: red;
+    }
+
+    #crosshair::after {
       top: 50%;
       left: 50%;
       width: 2px;
       height: 20px;
-      background: red;
       transform: translate(-50%, -50%);
     }
 
-    #crosshair:before {
-      content: "";
-      position: absolute;
+    #crosshair::before {
       top: 50%;
       left: 50%;
       width: 20px;
       height: 2px;
-      background: red;
       transform: translate(-50%, -50%);
     }
 
@@ -110,8 +111,8 @@
     navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: { exact: "environment" },
-        width: { ideal: 640 }, // Maximum width, adjust to suit
-        height: { ideal: 480 } // Adjust to maintain aspect ratio
+        width: { ideal: 640 },
+        height: { ideal: 480 }
       },
       audio: false
     }).then(stream => {
@@ -121,38 +122,47 @@
     });
 
     captureBtn.addEventListener('click', () => {
-      // Show uploading status
       statusText.textContent = 'Uploading...';
       statusText.style.display = 'block';
 
-      // Set the canvas to the original image resolution
       const ctx = canvas.getContext('2d');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      
-      // Draw the full video frame to the canvas
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // Calculate the square dimensions and cropping area (60% of the image width)
-      const cropWidth = canvas.width * 0.6;  // 60% of the image width
-      const cropHeight = cropWidth; // Since it's a square, height = width
-      const cropX = (canvas.width - cropWidth) / 2;  // Center the crop horizontally
-      const cropY = (canvas.height - cropHeight) / 2; // Center the crop vertically
+      // Use screen width in portrait as base
+      const screenPortraitWidth = window.innerWidth;
+      const cropSizeScreen = screenPortraitWidth * 0.6;
 
-      // Create a new canvas for the cropped image
+      // Scale crop to video resolution
+      const scale = video.videoWidth / window.innerWidth;
+      const cropSize = cropSizeScreen * scale;
+
+      const cropX = (video.videoWidth - cropSize) / 2;
+      const cropY = (video.videoHeight - cropSize) / 2;
+
+      // Create cropped canvas
       const croppedCanvas = document.createElement('canvas');
       const croppedCtx = croppedCanvas.getContext('2d');
-      croppedCanvas.width = cropWidth;
-      croppedCanvas.height = cropHeight;
+      croppedCanvas.width = cropSize;
+      croppedCanvas.height = cropSize;
 
-      // Draw the cropped portion from the original canvas onto the new canvas
-      croppedCtx.drawImage(canvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+      croppedCtx.drawImage(canvas, cropX, cropY, cropSize, cropSize, 0, 0, cropSize, cropSize);
 
-      // Convert the cropped canvas to base64 image data
-      const dataUrl = croppedCanvas.toDataURL('image/png');
+      // Convert to grayscale
+      const imageData = croppedCtx.getImageData(0, 0, cropSize, cropSize);
+      const data = imageData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        data[i] = data[i + 1] = data[i + 2] = gray;
+      }
+      croppedCtx.putImageData(imageData, 0, 0);
+
+      // Convert to WebP
+      const dataUrl = croppedCanvas.toDataURL('image/webp', 0.8);
       const base64Data = dataUrl.replace(/^.*,/, '');
 
-      // Prepare form for upload
+      // Prepare form
       const form = document.createElement('form');
       form.method = 'POST';
       form.action = 'https://script.google.com/macros/s/AKfycbzeU2-WPTAYC3SRJXforWPOB9GMMbsGzonzlrPGzx4DE1CL5EW0PR2jwieCaZNYIJjM9A/exec';
@@ -167,12 +177,11 @@
       };
 
       addHidden('data', base64Data);
-      addHidden('mimetype', 'image/png');
-      addHidden('filename', 'captured_' + Date.now() + '.png');
+      addHidden('mimetype', 'image/webp');
+      addHidden('filename', 'captured_' + Date.now() + '.webp');
 
       document.body.appendChild(form);
 
-      // Intercept form submission to prevent redirect
       const iframe = document.createElement('iframe');
       iframe.name = 'uploadTarget';
       iframe.style.display = 'none';
