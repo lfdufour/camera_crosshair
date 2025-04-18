@@ -37,8 +37,8 @@
       position: absolute;
       top: 50%;
       left: 50%;
-      width: 80vw;
-      height: 80vw;
+      width: 70vw;
+      height: 70vw;
       transform: translate(-50%, -50%);
       border: 2px solid red;
       border-radius: 50%;
@@ -164,7 +164,7 @@
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
         const screenPortraitWidth = window.innerWidth;
-        const cropSizeScreen = screenPortraitWidth * 0.6;
+        const cropSizeScreen = screenPortraitWidth * 0.5;
         const scale = video.videoWidth / window.innerWidth;
         const cropSize = cropSizeScreen * scale;
 
