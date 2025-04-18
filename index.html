@@ -15,7 +15,7 @@
       font-family: sans-serif;
     }
 
-    video, canvas {
+    video, canvas, #snapshot {
       position: absolute;
       top: 0;
       left: 0;
@@ -29,6 +29,7 @@
       width: 100vw;
       height: 100vh;
       pointer-events: none;
+      z-index: 2;
     }
 
     #crosshair {
@@ -53,7 +54,7 @@
       border: 2px solid white;
       color: white;
       cursor: pointer;
-      z-index: 10;
+      z-index: 3;
     }
 
     #status {
@@ -66,25 +67,33 @@
       padding: 6px 12px;
       border-radius: 8px;
       display: none;
+      z-index: 3;
+    }
+
+    #snapshot {
+      display: none;
+      z-index: 1;
     }
   </style>
 </head>
 <body>
   <video id="video" autoplay playsinline></video>
+  <canvas id="canvas" style="display: none;"></canvas>
+  <img id="snapshot" />
   <div id="overlay">
     <div id="crosshair"></div>
   </div>
   <button id="capture">Take Picture</button>
   <div id="status">Uploading...</div>
-  <canvas id="canvas" style="display: none;"></canvas>
 
   <script>
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
+    const snapshot = document.getElementById('snapshot');
     const captureBtn = document.getElementById('capture');
     const statusText = document.getElementById('status');
 
-    // Start rear camera
+    // Access rear camera
     navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: { exact: "environment" }
@@ -93,59 +102,47 @@
     }).then(stream => {
       video.srcObject = stream;
     }).catch(err => {
-      alert("Error accessing camera: " + err);
+      alert("Camera error: " + err);
     });
 
     captureBtn.addEventListener('click', () => {
-      // Show uploading status
-      statusText.textContent = 'Uploading...';
-      statusText.style.display = 'block';
-
-      // Draw image to canvas
+      // Draw video frame on canvas
       const ctx = canvas.getContext('2d');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // Convert to base64
+      // Show captured image instead of video
       const dataUrl = canvas.toDataURL('image/png');
-      const base64Data = dataUrl.replace(/^.*,/, '');
+      snapshot.src = dataUrl;
+      snapshot.style.display = 'block';
+      video.style.display = 'none';
+      captureBtn.style.display = 'none';
 
-      // Prepare form
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = 'https://script.google.com/macros/s/AKfycbzeU2-WPTAYC3SRJXforWPOB9GMMbsGzonzlrPGzx4DE1CL5EW0PR2jwieCaZNYIJjM9A/exec';
-      form.style.display = 'none';
+      // Show status text
+      statusText.textContent = "Uploading...";
+      statusText.style.display = 'block';
 
-      const addHidden = (name, value) => {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = name;
-        input.value = value;
-        form.appendChild(input);
-      };
+      // Prepare upload to Google Drive
+      const base64Data = dataUrl.split(',')[1];
 
-      addHidden('data', base64Data);
-      addHidden('mimetype', 'image/png');
-      addHidden('filename', 'captured_' + Date.now() + '.png');
+      const formData = new FormData();
+      formData.append('data', base64Data);
+      formData.append('mimetype', 'image/png');
+      formData.append('filename', 'captured_' + Date.now() + '.png');
 
-      document.body.appendChild(form);
-
-      // Intercept form submission to prevent redirect
-      const iframe = document.createElement('iframe');
-      iframe.name = 'uploadTarget';
-      iframe.style.display = 'none';
-      document.body.appendChild(iframe);
-      form.target = 'uploadTarget';
-
-      iframe.onload = () => {
-        statusText.textContent = '✅ Uploaded!';
-        setTimeout(() => {
-          statusText.style.display = 'none';
-        }, 2000);
-      };
-
-      form.submit();
+      // Use fetch to stay on the same page (no redirect!)
+      fetch('https://script.google.com/macros/s/AKfycbzeU2-WPTAYC3SRJXforWPOB9GMMbsGzonzlrPGzx4DE1CL5EW0PR2jwieCaZNYIJjM9A/exec', {
+        method: 'POST',
+        body: formData
+      })
+      .then(res => res.text())
+      .then(res => {
+        statusText.textContent = "✅ Here is the picture taken.";
+      })
+      .catch(err => {
+        statusText.textContent = "❌ Upload failed: " + err;
+      });
     });
   </script>
 </body>
