@@ -114,6 +114,18 @@
       color: yellow;
       display: none;
     }
+
+    #message {
+      position: absolute;
+      bottom: 140px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 16px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 6px 12px;
+      border-radius: 8px;
+      color: yellow;
+    }
   </style>
 </head>
 <body>
@@ -123,7 +135,8 @@
       <div id="tick"></div>
     </div>
   </div>
-  <button id="capture">Take Two Pictures BW v2</button>
+  <button id="capture">Take Two Pictures</button>
+  <div id="message">Please take a picture</div>
   <div id="waiting">Waiting for second picture...</div>
   <div id="status">Uploading...</div>
   <canvas id="canvas" style="display: none;"></canvas>
@@ -134,13 +147,14 @@
     const captureBtn = document.getElementById('capture');
     const statusText = document.getElementById('status');
     const waitingText = document.getElementById('waiting');
+    const messageText = document.getElementById('message');
 
-    // Start rear camera
+    // Start rear camera with higher resolution request
     navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: { exact: "environment" },
-        width: { ideal: 9999 },
-        height: { ideal: 9999 }
+        width: { ideal: 1920 },   // Increased resolution request
+        height: { ideal: 1080 }    // Increased resolution request
       },
       audio: false
     }).then(stream => {
@@ -151,9 +165,9 @@
 
     // Take two images 1 second apart and upload
     captureBtn.addEventListener('click', async () => {
-      statusText.textContent = 'Uploading...';
-      statusText.style.display = 'block';
+      messageText.textContent = 'Waiting for second picture...';
       waitingText.style.display = 'block';
+      statusText.style.display = 'none';
 
       // Helper to capture, crop, grayscale, and return dataURL + timestamp
       async function captureImage() {
@@ -190,11 +204,16 @@
         return { base64Data, timestamp };
       }
 
+      // Capture the first image
       const image1 = await captureImage();
       waitingText.style.display = 'none';  // Hide waiting message
+      messageText.textContent = 'Please take second picture';
       await new Promise(resolve => setTimeout(resolve, 1000));  // Wait 1 second
 
+      // Capture the second image
       const image2 = await captureImage();
+      messageText.textContent = 'Uploading...';
+      statusText.style.display = 'block';
 
       // Uploading the two images via fetch
       fetch('https://script.google.com/macros/s/AKfycbzeU2-WPTAYC3SRJXforWPOB9GMMbsGzonzlrPGzx4DE1CL5EW0PR2jwieCaZNYIJjM9A/exec', {
