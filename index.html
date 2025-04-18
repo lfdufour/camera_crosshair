@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Camera with Crosshair and Upload v4</title>
+  <title>Camera with Crosshair and Upload v5</title>
   <style>
     body, html {
       margin: 0;
@@ -35,46 +35,34 @@
       position: absolute;
       top: 50%;
       left: 50%;
-      width: 50vw;
-      height: 50vw;
+      width: 60vw;
+      height: 60vw;
       transform: translate(-50%, -50%);
       border: 2px solid red;
       border-radius: 50%;
     }
 
-    /* Center cross lines */
-    .center-horizontal, .center-vertical, .top-notch {
+    #crosshair:after {
+      content: "";
       position: absolute;
-      background: red;
-    }
-    
-    /* Horizontal center line */
-    .center-horizontal {
       top: 50%;
-      left: 25%;
-      width: 50%;
-      height: 0.5%;
-      transform: translateY(-50%);
-    }
-    
-    /* Vertical center line */
-    .center-vertical {
-      top: 25%;
       left: 50%;
-      width: 0.5%;
-      height: 50%;
-      transform: translateX(-50%);
-    }
-    
-    /* Top alignment notch */
-    .top-notch {
-      top: 0%;
-      left: 50%;
-      width: 0.5%;
-      height: 5%;
-      transform: translateX(-50%);
+      width: 2px;
+      height: 20px;
+      background: red;
+      transform: translate(-50%, -50%);
     }
 
+    #crosshair:before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 20px;
+      height: 2px;
+      background: red;
+      transform: translate(-50%, -50%);
+    }
 
     #capture {
       position: absolute;
@@ -106,11 +94,7 @@
 <body>
   <video id="video" autoplay playsinline></video>
   <div id="overlay">
-    <div id="crosshair">
-      <div class="center-horizontal"></div>
-      <div class="center-vertical"></div>
-      <div class="top-notch"></div>
-    </div>
+    <div id="crosshair"></div>
   </div>
   <button id="capture">Take Picture v4</button>
   <div id="status">Uploading...</div>
@@ -126,14 +110,12 @@
     navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: { exact: "environment" },
-        width: { exact: 1080 }
+        width: { ideal: 640 }, // Maximum width, adjust to suit
+        height: { ideal: 480 } // Adjust to maintain aspect ratio
       },
       audio: false
     }).then(stream => {
       video.srcObject = stream;
-      video.onloadedmetadata = () => {
-          console.log(`Camera resolution: ${video.videoWidth}x${video.videoHeight}`);
-        };
     }).catch(err => {
       alert("Error accessing camera: " + err);
     });
@@ -143,17 +125,34 @@
       statusText.textContent = 'Uploading...';
       statusText.style.display = 'block';
 
-      // Draw image to canvas
+      // Set the canvas to the original image resolution
       const ctx = canvas.getContext('2d');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
+      
+      // Draw the full video frame to the canvas
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // Convert to base64
-      const dataUrl = canvas.toDataURL('image/png');
+      // Calculate the square dimensions and cropping area (60% of the image width)
+      const cropWidth = canvas.width * 0.6;  // 60% of the image width
+      const cropHeight = cropWidth; // Since it's a square, height = width
+      const cropX = (canvas.width - cropWidth) / 2;  // Center the crop horizontally
+      const cropY = (canvas.height - cropHeight) / 2; // Center the crop vertically
+
+      // Create a new canvas for the cropped image
+      const croppedCanvas = document.createElement('canvas');
+      const croppedCtx = croppedCanvas.getContext('2d');
+      croppedCanvas.width = cropWidth;
+      croppedCanvas.height = cropHeight;
+
+      // Draw the cropped portion from the original canvas onto the new canvas
+      croppedCtx.drawImage(canvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+
+      // Convert the cropped canvas to base64 image data
+      const dataUrl = croppedCanvas.toDataURL('image/png');
       const base64Data = dataUrl.replace(/^.*,/, '');
 
-      // Prepare form
+      // Prepare form for upload
       const form = document.createElement('form');
       form.method = 'POST';
       form.action = 'https://script.google.com/macros/s/AKfycbzeU2-WPTAYC3SRJXforWPOB9GMMbsGzonzlrPGzx4DE1CL5EW0PR2jwieCaZNYIJjM9A/exec';
