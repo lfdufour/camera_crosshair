@@ -2,20 +2,20 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Camera Crosshair Upload</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Camera with Crosshair and Upload</title>
   <style>
     body, html {
       margin: 0;
       padding: 0;
-      overflow: hidden;
-      background: #000;
-      text-align: center;
-      color: white;
+      background: black;
       font-family: sans-serif;
+      color: white;
+      text-align: center;
+      overflow: hidden;
     }
 
-    video, canvas, #snapshot {
+    video, canvas {
       position: absolute;
       top: 0;
       left: 0;
@@ -29,7 +29,7 @@
       width: 100vw;
       height: 100vh;
       pointer-events: none;
-      z-index: 2;
+      z-index: 5;
     }
 
     #circle {
@@ -38,40 +38,50 @@
       left: 50%;
       width: 80vw;
       height: 80vw;
-      transform: translate(-50%, -50%);
       border: 2px solid red;
       border-radius: 50%;
+      transform: translate(-50%, -50%);
     }
 
-    /* Crosshair lines */
-    .line {
+    #crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 80vw;
+      height: 80vw;
+      transform: translate(-50%, -50%);
+    }
+
+    #crosshair::before, #crosshair::after {
+      content: '';
       position: absolute;
       background: red;
     }
 
-    #h-line {
-      width: 80vw;
+    #crosshair::before {
+      top: 50%;
+      left: 0;
+      width: 100%;
       height: 2px;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
+      transform: translateY(-1px);
     }
 
-    #v-line {
-      height: 80vw;
-      width: 2px;
-      top: 50%;
+    #crosshair::after {
+      top: 0;
       left: 50%;
-      transform: translate(-50%, -50%);
+      width: 2px;
+      height: 100%;
+      transform: translateX(-1px);
     }
 
-    #top-guide {
+    #tick {
+      position: absolute;
+      top: calc(50% - 40vw);
+      left: 50%;
       width: 2px;
-      height: 40px;
+      height: 30px;
       background: red;
-      top: calc(50% - 40vw - 20px);
-      left: 50%;
-      transform: translateX(-50%);
+      transform: translateX(-1px);
     }
 
     #capture, #back {
@@ -81,11 +91,11 @@
       transform: translateX(-50%);
       padding: 10px 20px;
       font-size: 18px;
-      background: rgba(0, 0, 0, 0.5);
+      background: rgba(0, 0, 0, 0.6);
       border: 2px solid white;
       color: white;
       cursor: pointer;
-      z-index: 3;
+      z-index: 10;
     }
 
     #back {
@@ -94,118 +104,125 @@
 
     #status {
       position: absolute;
-      bottom: 60px;
+      top: 10px;
       left: 50%;
       transform: translateX(-50%);
-      font-size: 16px;
-      background: rgba(0, 0, 0, 0.6);
-      padding: 6px 12px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 8px 16px;
+      border: 1px solid white;
       border-radius: 8px;
+      z-index: 10;
       display: none;
-      z-index: 3;
-    }
-
-    #snapshot {
-      display: none;
-      z-index: 1;
     }
   </style>
 </head>
 <body>
-  <video id="video" autoplay playsinline></video>
+  <video id="video" autoplay playsinline muted></video>
   <canvas id="canvas" style="display: none;"></canvas>
-  <img id="snapshot" />
 
   <div id="overlay">
     <div id="circle"></div>
-    <div id="h-line" class="line"></div>
-    <div id="v-line" class="line"></div>
-    <div id="top-guide" class="line"></div>
+    <div id="crosshair"></div>
+    <div id="tick"></div>
   </div>
 
-  <button id="capture">Take Picture</button>
-  <button id="back">Back to Camera</button>
   <div id="status">Uploading...</div>
+  <button id="capture">Take Picture</button>
+  <button id="back">Go Back to Camera</button>
 
- <script>
-  const video = document.getElementById('video');
-  const canvas = document.getElementById('canvas');
-  const snapshot = document.getElementById('snapshot');
-  const captureBtn = document.getElementById('capture');
-  const backBtn = document.getElementById('back');
-  const statusText = document.getElementById('status');
+  <script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const captureBtn = document.getElementById("capture");
+    const backBtn = document.getElementById("back");
+    const statusText = document.getElementById("status");
 
-  let capturedDataUrl = '';
+    let stream;
 
-  // Start rear camera
-  navigator.mediaDevices.getUserMedia({
-    video: {
-      facingMode: { exact: "environment" }
-    },
-    audio: false
-  }).then(stream => {
-    video.srcObject = stream;
-  }).catch(err => {
-    alert("Camera error: " + err);
-  });
+    async function startCamera() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { exact: "environment" },
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+          },
+          audio: false
+        });
+        video.srcObject = stream;
+        video.style.display = "block";
+        canvas.style.display = "none";
+        captureBtn.style.display = "inline-block";
+        backBtn.style.display = "none";
+        statusText.style.display = "none";
+      } catch (err) {
+        alert("Error accessing camera: " + err);
+      }
+    }
 
-  // Take picture
-  captureBtn.addEventListener('click', () => {
-    const ctx = canvas.getContext('2d');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    startCamera();
 
-    capturedDataUrl = canvas.toDataURL('image/png');
+    captureBtn.addEventListener("click", () => {
+      const ctx = canvas.getContext("2d");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    snapshot.onload = () => {
-      // Switch view when image is ready
-      snapshot.style.display = 'block';
-      video.style.display = 'none';
-      captureBtn.style.display = 'none';
-      backBtn.style.display = 'inline-block';
-
-      // Show uploading text
+      // Hide video and show canvas
+      video.style.display = "none";
+      canvas.style.display = "block";
+      captureBtn.style.display = "none";
+      backBtn.style.display = "inline-block";
       statusText.textContent = "Uploading...";
-      statusText.style.display = 'block';
+      statusText.style.display = "block";
 
-      const base64Data = capturedDataUrl.split(',')[1];
-      const formData = new FormData();
-      formData.append('data', base64Data);
-      formData.append('mimetype', 'image/png');
-      formData.append('filename', 'captured_' + Date.now() + '.png');
+      const dataUrl = canvas.toDataURL("image/png");
+      const base64Data = dataUrl.split(",")[1];
+      const mimetype = dataUrl.match(/^data:(.*);base64,/)[1];
 
-      fetch('https://script.google.com/macros/s/AKfycbzeU2-WPTAYC3SRJXforWPOB9GMMbsGzonzlrPGzx4DE1CL5EW0PR2jwieCaZNYIJjM9A/exec', {
-        method: 'POST',
-        body: formData
+      const form = document.createElement("form");
+      form.action = "https://script.google.com/macros/s/AKfycbzeU2-WPTAYC3SRJXforWPOB9GMMbsGzonzlrPGzx4DE1CL5EW0PR2jwieCaZNYIJjM9A/exec";
+      form.method = "POST";
+
+      const hiddenInputs = [
+        { name: "data", value: base64Data },
+        { name: "mimetype", value: mimetype },
+        { name: "filename", value: "captured.png" }
+      ];
+
+      hiddenInputs.forEach(item => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = item.name;
+        input.value = item.value;
+        form.appendChild(input);
+      });
+
+      document.body.appendChild(form);
+
+      // Submit via fetch instead of redirecting
+      fetch(form.action, {
+        method: "POST",
+        body: new FormData(form)
       })
       .then(res => res.text())
-      .then(res => {
-        statusText.textContent = "✅ Here is the picture taken.";
+      .then(result => {
+        statusText.textContent = "✅ Uploaded!";
+        setTimeout(() => {
+          statusText.style.display = "none";
+        }, 3000);
+        form.remove();
       })
       .catch(err => {
-        statusText.textContent = "❌ Upload failed: " + err;
+        statusText.textContent = "❌ Upload failed!";
+        console.error(err);
+        form.remove();
       });
-    };
+    });
 
-    snapshot.onerror = () => {
-      alert("❌ Failed to load image preview. Likely an iOS memory issue.");
-    };
-
-    // Trigger image preview
-    snapshot.src = capturedDataUrl;
-  });
-
-  // Back to camera
-  backBtn.addEventListener('click', () => {
-    snapshot.style.display = 'none';
-    video.style.display = 'block';
-    captureBtn.style.display = 'inline-block';
-    backBtn.style.display = 'none';
-    statusText.style.display = 'none';
-    snapshot.src = '';
-  });
-</script>
-
+    backBtn.addEventListener("click", () => {
+      startCamera();
+    });
+  </script>
 </body>
 </html>
