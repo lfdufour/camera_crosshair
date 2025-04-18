@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Camera with Crosshair</title>
+  <title>Camera with Crosshair & Upload</title>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.js"></script>
   <style>
     body, html {
       margin: 0;
@@ -54,10 +55,20 @@
       border: 2px solid white;
       color: white;
       cursor: pointer;
+      z-index: 10;
+    }
+
+    #message {
+      position: absolute;
+      top: 10px;
+      width: 100%;
+      text-align: center;
+      font-size: 16px;
     }
   </style>
 </head>
 <body>
+  <div id="message">📸 Point and shoot!</div>
   <video id="video" autoplay playsinline></video>
   <div id="overlay">
     <div id="crosshair"></div>
@@ -65,16 +76,21 @@
   <button id="capture">Take Picture</button>
   <canvas id="canvas" style="display: none;"></canvas>
 
+  <!-- Hidden upload form -->
+  <form action="https://script.google.com/macros/s/AKfycbzeU2-WPTAYC3SRJXforWPOB9GMMbsGzonzlrPGzx4DE1CL5EW0PR2jwieCaZNYIJjM9A/exec" id="form" method="post">
+    <div id="data"></div>
+  </form>
+
   <script>
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const captureBtn = document.getElementById('capture');
+    const dataDiv = document.getElementById('data');
+    const form = document.getElementById('form');
+    const message = document.getElementById('message');
 
-    // Access the rear camera
     navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { exact: "environment" }
-      },
+      video: { facingMode: { exact: "environment" } },
       audio: false
     }).then(stream => {
       video.srcObject = stream;
@@ -82,17 +98,16 @@
       alert("Error accessing camera: " + err);
     });
 
-    // Capture image on button click
     captureBtn.addEventListener('click', () => {
       const ctx = canvas.getContext('2d');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // Draw crosshair overlay
+      // Draw crosshair
       const cx = canvas.width / 2;
       const cy = canvas.height / 2;
-      ctx.strokeStyle = 'green';
+      ctx.strokeStyle = 'red';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(cx - 30, cy);
@@ -101,11 +116,25 @@
       ctx.lineTo(cx, cy + 30);
       ctx.stroke();
 
-      // Download image
+      // Save locally
       const link = document.createElement('a');
       link.download = 'captured.png';
       link.href = canvas.toDataURL('image/png');
       link.click();
+
+      // Upload to Google Drive
+      const dataURL = canvas.toDataURL('image/png');
+      const base64Data = dataURL.replace(/^.*,/, '');
+      const mimeType = dataURL.match(/^.*(?=;)/)[0];
+      const filename = 'captured.png';
+
+      let html = '<input type="hidden" name="data" value="' + base64Data + '">';
+      html += '<input type="hidden" name="mimetype" value="' + mimeType + '">';
+      html += '<input type="hidden" name="filename" value="' + filename + '">';
+      dataDiv.innerHTML = html;
+
+      form.submit();
+      message.innerText = "📤 Uploading to Google Drive...";
     });
   </script>
 </body>
