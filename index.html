@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Camera with Crosshair and Save</title>
+  <title>Camera with Crosshair</title>
   <style>
     body, html {
       margin: 0;
@@ -11,6 +11,7 @@
       overflow: hidden;
       background: #000;
       text-align: center;
+      color: white;
     }
 
     video, canvas {
@@ -29,25 +30,17 @@
       pointer-events: none;
     }
 
-    .line {
+    #crosshair {
       position: absolute;
-      background: green;
-    }
-
-    #h-line {
       top: 50%;
-      left: 0;
-      width: 100%;
-      height: 2px;
-      transform: translateY(-1px);
-    }
-
-    #v-line {
       left: 50%;
-      top: 0;
-      height: 100%;
-      width: 2px;
-      transform: translateX(-1px);
+      width: 60px;
+      height: 60px;
+      transform: translate(-50%, -50%);
+      border-left: 2px solid red;
+      border-top: 2px solid red;
+      border-right: 2px solid red;
+      border-bottom: 2px solid red;
     }
 
     #capture {
@@ -61,15 +54,13 @@
       border: 2px solid white;
       color: white;
       cursor: pointer;
-      z-index: 10;
     }
   </style>
 </head>
 <body>
   <video id="video" autoplay playsinline></video>
   <div id="overlay">
-    <div id="h-line" class="line"></div>
-    <div id="v-line" class="line"></div>
+    <div id="crosshair"></div>
   </div>
   <button id="capture">Take Picture</button>
   <canvas id="canvas" style="display: none;"></canvas>
@@ -79,7 +70,7 @@
     const canvas = document.getElementById('canvas');
     const captureBtn = document.getElementById('capture');
 
-    // Start rear camera
+    // Access the rear camera
     navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: { exact: "environment" }
@@ -91,36 +82,30 @@
       alert("Error accessing camera: " + err);
     });
 
+    // Capture image on button click
     captureBtn.addEventListener('click', () => {
       const ctx = canvas.getContext('2d');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-
-      // Draw the video frame
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // Draw crosshair
+      // Draw crosshair overlay
       const cx = canvas.width / 2;
       const cy = canvas.height / 2;
-      ctx.strokeStyle = 'red';
-      ctx.lineWidth = 4;
-
+      ctx.strokeStyle = 'green';
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(0, cy);
-      ctx.lineTo(canvas.width, cy);
+      ctx.moveTo(cx - 30, cy);
+      ctx.lineTo(cx + 30, cy);
+      ctx.moveTo(cx, cy - 30);
+      ctx.lineTo(cx, cy + 30);
       ctx.stroke();
 
-      ctx.beginPath();
-      ctx.moveTo(cx, 0);
-      ctx.lineTo(cx, canvas.height);
-      ctx.stroke();
-
-      // Save the image locally
-      const imageDataURL = canvas.toDataURL("image/png");
-      const a = document.createElement('a');
-      a.href = imageDataURL;
-      a.download = 'photo_with_crosshair.png';
-      a.click();
+      // Download image
+      const link = document.createElement('a');
+      link.download = 'captured.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
     });
   </script>
 </body>
