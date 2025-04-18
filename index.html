@@ -127,35 +127,39 @@
   <button id="back">Back to Camera</button>
   <div id="status">Uploading...</div>
 
-  <script>
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
-    const snapshot = document.getElementById('snapshot');
-    const captureBtn = document.getElementById('capture');
-    const backBtn = document.getElementById('back');
-    const statusText = document.getElementById('status');
+ <script>
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  const snapshot = document.getElementById('snapshot');
+  const captureBtn = document.getElementById('capture');
+  const backBtn = document.getElementById('back');
+  const statusText = document.getElementById('status');
 
-    // Start rear camera
-    navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { exact: "environment" }
-      },
-      audio: false
-    }).then(stream => {
-      video.srcObject = stream;
-    }).catch(err => {
-      alert("Camera error: " + err);
-    });
+  let capturedDataUrl = '';
 
-    // Take picture
-    captureBtn.addEventListener('click', () => {
-      const ctx = canvas.getContext('2d');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  // Start rear camera
+  navigator.mediaDevices.getUserMedia({
+    video: {
+      facingMode: { exact: "environment" }
+    },
+    audio: false
+  }).then(stream => {
+    video.srcObject = stream;
+  }).catch(err => {
+    alert("Camera error: " + err);
+  });
 
-      const dataUrl = canvas.toDataURL('image/png');
-      snapshot.src = dataUrl;
+  // Take picture
+  captureBtn.addEventListener('click', () => {
+    const ctx = canvas.getContext('2d');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    capturedDataUrl = canvas.toDataURL('image/png');
+
+    snapshot.onload = () => {
+      // Switch view when image is ready
       snapshot.style.display = 'block';
       video.style.display = 'none';
       captureBtn.style.display = 'none';
@@ -165,7 +169,7 @@
       statusText.textContent = "Uploading...";
       statusText.style.display = 'block';
 
-      const base64Data = dataUrl.split(',')[1];
+      const base64Data = capturedDataUrl.split(',')[1];
       const formData = new FormData();
       formData.append('data', base64Data);
       formData.append('mimetype', 'image/png');
@@ -182,16 +186,26 @@
       .catch(err => {
         statusText.textContent = "❌ Upload failed: " + err;
       });
-    });
+    };
 
-    // Reset back to camera mode
-    backBtn.addEventListener('click', () => {
-      snapshot.style.display = 'none';
-      video.style.display = 'block';
-      captureBtn.style.display = 'inline-block';
-      backBtn.style.display = 'none';
-      statusText.style.display = 'none';
-    });
-  </script>
+    snapshot.onerror = () => {
+      alert("❌ Failed to load image preview. Likely an iOS memory issue.");
+    };
+
+    // Trigger image preview
+    snapshot.src = capturedDataUrl;
+  });
+
+  // Back to camera
+  backBtn.addEventListener('click', () => {
+    snapshot.style.display = 'none';
+    video.style.display = 'block';
+    captureBtn.style.display = 'inline-block';
+    backBtn.style.display = 'none';
+    statusText.style.display = 'none';
+    snapshot.src = '';
+  });
+</script>
+
 </body>
 </html>
