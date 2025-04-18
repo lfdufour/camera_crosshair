@@ -2,17 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Camera with Crosshair and Upload v3</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Camera with Crosshair and Upload v4</title>
   <style>
     body, html {
       margin: 0;
       padding: 0;
-      background: black;
-      font-family: sans-serif;
-      color: white;
-      text-align: center;
       overflow: hidden;
+      background: #000;
+      text-align: center;
+      color: white;
+      font-family: sans-serif;
     }
 
     video, canvas {
@@ -29,18 +29,6 @@
       width: 100vw;
       height: 100vh;
       pointer-events: none;
-      z-index: 5;
-    }
-
-    #circle {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 80vw;
-      height: 80vw;
-      border: 2px solid red;
-      border-radius: 50%;
-      transform: translate(-50%, -50%);
     }
 
     #crosshair {
@@ -50,178 +38,114 @@
       width: 80vw;
       height: 80vw;
       transform: translate(-50%, -50%);
+      border: 2px solid red;
+      border-radius: 50%;
     }
 
-    #crosshair::before, #crosshair::after {
-      content: '';
-      position: absolute;
-      background: red;
-    }
-
-    #crosshair::before {
-      top: 50%;
-      left: 0;
-      width: 100%;
-      height: 2px;
-      transform: translateY(-1px);
-    }
-
-    #crosshair::after {
-      top: 0;
-      left: 50%;
-      width: 2px;
-      height: 100%;
-      transform: translateX(-1px);
-    }
-
-    #tick {
-      position: absolute;
-      top: calc(50% - 40vw);
-      left: 50%;
-      width: 2px;
-      height: 30px;
-      background: red;
-      transform: translateX(-1px);
-    }
-
-    #capture, #back {
+    #capture {
       position: absolute;
       bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
       padding: 10px 20px;
       font-size: 18px;
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(0, 0, 0, 0.5);
       border: 2px solid white;
       color: white;
       cursor: pointer;
       z-index: 10;
     }
 
-    #back {
-      display: none;
-    }
-
     #status {
       position: absolute;
-      top: 10px;
+      bottom: 60px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.7);
-      padding: 8px 16px;
-      border: 1px solid white;
+      font-size: 16px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 6px 12px;
       border-radius: 8px;
-      z-index: 10;
       display: none;
     }
   </style>
 </head>
 <body>
-  <video id="video" autoplay playsinline muted></video>
+  <video id="video" autoplay playsinline></video>
+  <div id="overlay">
+    <div id="crosshair"></div>
+  </div>
+  <button id="capture">Take Picture v4</button>
+  <div id="status">Uploading...</div>
   <canvas id="canvas" style="display: none;"></canvas>
 
-  <div id="overlay">
-    <div id="circle"></div>
-    <div id="crosshair"></div>
-    <div id="tick"></div>
-  </div>
-
-  <div id="status">Uploading...</div>
-  <button id="capture">Take Picture</button>
-  <button id="back">Go Back to Camera</button>
-
   <script>
-    const video = document.getElementById("video");
-    const canvas = document.getElementById("canvas");
-    const captureBtn = document.getElementById("capture");
-    const backBtn = document.getElementById("back");
-    const statusText = document.getElementById("status");
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const captureBtn = document.getElementById('capture');
+    const statusText = document.getElementById('status');
 
-    let stream;
+    // Start rear camera
+    navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { exact: "environment" }
+      },
+      audio: false
+    }).then(stream => {
+      video.srcObject = stream;
+    }).catch(err => {
+      alert("Error accessing camera: " + err);
+    });
 
-    async function startCamera() {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { exact: "environment" },
-            width: { ideal: 640 },
-            height: { ideal: 480 }
-          },
-          audio: false
-        });
-        video.srcObject = stream;
-        video.style.display = "block";
-        canvas.style.display = "none";
-        captureBtn.style.display = "inline-block";
-        backBtn.style.display = "none";
-        statusText.style.display = "none";
-      } catch (err) {
-        alert("Error accessing camera: " + err);
-      }
-    }
+    captureBtn.addEventListener('click', () => {
+      // Show uploading status
+      statusText.textContent = 'Uploading...';
+      statusText.style.display = 'block';
 
-    startCamera();
-
-    captureBtn.addEventListener("click", () => {
-      const ctx = canvas.getContext("2d");
+      // Draw image to canvas
+      const ctx = canvas.getContext('2d');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // Hide video and show canvas
-      video.style.display = "none";
-      canvas.style.display = "block";
-      captureBtn.style.display = "none";
-      backBtn.style.display = "inline-block";
-      statusText.textContent = "Uploading...";
-      statusText.style.display = "block";
+      // Convert to base64
+      const dataUrl = canvas.toDataURL('image/png');
+      const base64Data = dataUrl.replace(/^.*,/, '');
 
-      const dataUrl = canvas.toDataURL("image/png");
-      const base64Data = dataUrl.split(",")[1];
-      const mimetype = dataUrl.match(/^data:(.*);base64,/)[1];
+      // Prepare form
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = 'https://script.google.com/macros/s/AKfycbzeU2-WPTAYC3SRJXforWPOB9GMMbsGzonzlrPGzx4DE1CL5EW0PR2jwieCaZNYIJjM9A/exec';
+      form.style.display = 'none';
 
-      const form = document.createElement("form");
-      form.action = "https://script.google.com/macros/s/AKfycbzeU2-WPTAYC3SRJXforWPOB9GMMbsGzonzlrPGzx4DE1CL5EW0PR2jwieCaZNYIJjM9A/exec";
-      form.method = "POST";
-
-      const hiddenInputs = [
-        { name: "data", value: base64Data },
-        { name: "mimetype", value: mimetype },
-        { name: "filename", value: "captured.png" }
-      ];
-
-      hiddenInputs.forEach(item => {
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = item.name;
-        input.value = item.value;
+      const addHidden = (name, value) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
         form.appendChild(input);
-      });
+      };
+
+      addHidden('data', base64Data);
+      addHidden('mimetype', 'image/png');
+      addHidden('filename', 'captured_' + Date.now() + '.png');
 
       document.body.appendChild(form);
 
-      // Submit via fetch instead of redirecting
-      fetch(form.action, {
-        method: "POST",
-        body: new FormData(form)
-      })
-      .then(res => res.text())
-      .then(result => {
-        statusText.textContent = "✅ Uploaded!";
-        setTimeout(() => {
-          statusText.style.display = "none";
-        }, 3000);
-        form.remove();
-      })
-      .catch(err => {
-        statusText.textContent = "❌ Upload failed!";
-        console.error(err);
-        form.remove();
-      });
-    });
+      // Intercept form submission to prevent redirect
+      const iframe = document.createElement('iframe');
+      iframe.name = 'uploadTarget';
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+      form.target = 'uploadTarget';
 
-    backBtn.addEventListener("click", () => {
-      startCamera();
+      iframe.onload = () => {
+        statusText.textContent = '✅ Uploaded!';
+        setTimeout(() => {
+          statusText.style.display = 'none';
+        }, 2000);
+      };
+
+      form.submit();
     });
   </script>
 </body>
