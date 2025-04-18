@@ -19,10 +19,11 @@
       position: absolute;
       top: 0;
       left: 0;
-      width: 150vw; /* 1.5x zoom */
-      height: 150vh;
+      width: 100vw;
+      height: 100vh;
       object-fit: cover;
-      transform: translate(-50vw, -50vh); /* center the zoomed area */
+      transform: scale(1.5);
+      transform-origin: center center; /* Make sure scaling happens from the center */
     }
 
     #overlay {
@@ -36,8 +37,8 @@
       position: absolute;
       top: 50%;
       left: 50%;
-      width: 70vw;
-      height: 70vw;
+      width: 80vw;
+      height: 80vw;
       transform: translate(-50%, -50%);
       border: 2px solid red;
       border-radius: 50%;
@@ -167,14 +168,8 @@
         const scale = video.videoWidth / window.innerWidth;
         const cropSize = cropSizeScreen * scale;
 
-        // Compute adjusted crop coordinates due to zoom
-        const visibleWidth = video.videoWidth / zoom;
-        const visibleHeight = video.videoHeight / zoom;
-        const visibleLeft = (video.videoWidth - visibleWidth) / 2;
-        const visibleTop = (video.videoHeight - visibleHeight) / 2;
-        
-        const cropX = visibleLeft + (visibleWidth - cropSize) / 2;
-        const cropY = visibleTop + (visibleHeight - cropSize) / 2;
+        const cropX = (video.videoWidth - cropSize) / 2;
+        const cropY = (video.videoHeight - cropSize) / 2;
 
         const croppedCanvas = document.createElement('canvas');
         const croppedCtx = croppedCanvas.getContext('2d');
