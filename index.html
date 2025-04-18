@@ -101,6 +101,19 @@
       border-radius: 8px;
       display: none;
     }
+
+    #waiting {
+      position: absolute;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 16px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 6px 12px;
+      border-radius: 8px;
+      color: yellow;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -110,7 +123,8 @@
       <div id="tick"></div>
     </div>
   </div>
-  <button id="capture">Take Two Pictures</button>
+  <button id="capture">Take Two Pictures BW v2</button>
+  <div id="waiting">Waiting for second picture...</div>
   <div id="status">Uploading...</div>
   <canvas id="canvas" style="display: none;"></canvas>
 
@@ -119,6 +133,7 @@
     const canvas = document.getElementById('canvas');
     const captureBtn = document.getElementById('capture');
     const statusText = document.getElementById('status');
+    const waitingText = document.getElementById('waiting');
 
     // Start rear camera
     navigator.mediaDevices.getUserMedia({
@@ -138,6 +153,7 @@
     captureBtn.addEventListener('click', async () => {
       statusText.textContent = 'Uploading...';
       statusText.style.display = 'block';
+      waitingText.style.display = 'block';
 
       // Helper to capture, crop, grayscale, and return dataURL + timestamp
       async function captureImage() {
@@ -175,43 +191,34 @@
       }
 
       const image1 = await captureImage();
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      waitingText.style.display = 'none';  // Hide waiting message
+      await new Promise(resolve => setTimeout(resolve, 1000));  // Wait 1 second
+
       const image2 = await captureImage();
 
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = 'https://script.google.com/macros/s/AKfycbzeU2-WPTAYC3SRJXforWPOB9GMMbsGzonzlrPGzx4DE1CL5EW0PR2jwieCaZNYIJjM9A/exec';
-      form.style.display = 'none';
-
-      const addHidden = (name, value) => {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = name;
-        input.value = value;
-        form.appendChild(input);
-      };
-
-      addHidden('data1', image1.base64Data);
-      addHidden('filename1', 'captured_' + image1.timestamp + '.webp');
-      addHidden('data2', image2.base64Data);
-      addHidden('filename2', 'captured_' + image2.timestamp + '.webp');
-
-      document.body.appendChild(form);
-
-      const iframe = document.createElement('iframe');
-      iframe.name = 'uploadTarget';
-      iframe.style.display = 'none';
-      document.body.appendChild(iframe);
-      form.target = 'uploadTarget';
-
-      iframe.onload = () => {
+      // Uploading the two images via fetch
+      fetch('https://script.google.com/macros/s/AKfycbzeU2-WPTAYC3SRJXforWPOB9GMMbsGzonzlrPGzx4DE1CL5EW0PR2jwieCaZNYIJjM9A/exec', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          data1: image1.base64Data,
+          filename1: 'captured_' + image1.timestamp + '.webp',
+          data2: image2.base64Data,
+          filename2: 'captured_' + image2.timestamp + '.webp'
+        })
+      })
+      .then(res => res.text())
+      .then(text => {
+        console.log('Success:', text);
         statusText.textContent = '✅ Uploaded!';
-        setTimeout(() => {
-          statusText.style.display = 'none';
-        }, 2000);
-      };
-
-      form.submit();
+      })
+      .catch(err => {
+        console.error('Upload failed:', err);
+        statusText.textContent = '❌ Upload failed';
+      })
+      .finally(() => {
+        setTimeout(() => statusText.style.display = 'none', 2000);
+      });
     });
   </script>
 </body>
