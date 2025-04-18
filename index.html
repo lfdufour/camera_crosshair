@@ -117,16 +117,20 @@
       const imageData = canvas.toDataURL('image/png').split(',')[1];
 
       // Upload to Google Apps Script
-      fetch('https://script.google.com/macros/s/AKfycbwDaRgpCTFwpIoADtnthG4gST2D-e3JBYMts9BAf2b0GVAlC1r2HrqGObKIsmFNwrDRwg/exec', {
+      fetch('https://script.google.com/macros/s/AKfycbzeU2-WPTAYC3SRJXforWPOB9GMMbsGzonzlrPGzx4DE1CL5EW0PR2jwieCaZNYIJjM9A/exec', {
         method: 'POST',
         headers: {
-          'Content-Type': 'image/png'
+          'Content-Type': 'application/json'
         },
-        body: imageData
+        body: JSON.stringify({
+          data: imageData,
+          mimetype: 'image/png',
+          filename: 'captured_image.png'
+        })
       })
-      .then(response => response.text())
+      .then(response => response.json())
       .then(result => {
-        alert("Image uploaded!\n" + result);
+        alert("Image uploaded!\n" + result.message);
       })
       .catch(error => {
         alert("Upload failed: " + error);
