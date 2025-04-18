@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Camera with Crosshair and Upload</title>
+  <title>Camera Crosshair Upload</title>
   <style>
     body, html {
       margin: 0;
@@ -32,7 +32,7 @@
       z-index: 2;
     }
 
-    #crosshair {
+    #circle {
       position: absolute;
       top: 50%;
       left: 50%;
@@ -43,7 +43,38 @@
       border-radius: 50%;
     }
 
-    #capture {
+    /* Crosshair lines */
+    .line {
+      position: absolute;
+      background: red;
+    }
+
+    #h-line {
+      width: 80vw;
+      height: 2px;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    #v-line {
+      height: 80vw;
+      width: 2px;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    #top-guide {
+      width: 2px;
+      height: 40px;
+      background: red;
+      top: calc(50% - 40vw - 20px);
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    #capture, #back {
       position: absolute;
       bottom: 20px;
       left: 50%;
@@ -55,6 +86,10 @@
       color: white;
       cursor: pointer;
       z-index: 3;
+    }
+
+    #back {
+      display: none;
     }
 
     #status {
@@ -80,10 +115,16 @@
   <video id="video" autoplay playsinline></video>
   <canvas id="canvas" style="display: none;"></canvas>
   <img id="snapshot" />
+
   <div id="overlay">
-    <div id="crosshair"></div>
+    <div id="circle"></div>
+    <div id="h-line" class="line"></div>
+    <div id="v-line" class="line"></div>
+    <div id="top-guide" class="line"></div>
   </div>
+
   <button id="capture">Take Picture</button>
+  <button id="back">Back to Camera</button>
   <div id="status">Uploading...</div>
 
   <script>
@@ -91,9 +132,10 @@
     const canvas = document.getElementById('canvas');
     const snapshot = document.getElementById('snapshot');
     const captureBtn = document.getElementById('capture');
+    const backBtn = document.getElementById('back');
     const statusText = document.getElementById('status');
 
-    // Access rear camera
+    // Start rear camera
     navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: { exact: "environment" }
@@ -105,33 +147,30 @@
       alert("Camera error: " + err);
     });
 
+    // Take picture
     captureBtn.addEventListener('click', () => {
-      // Draw video frame on canvas
       const ctx = canvas.getContext('2d');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // Show captured image instead of video
       const dataUrl = canvas.toDataURL('image/png');
       snapshot.src = dataUrl;
       snapshot.style.display = 'block';
       video.style.display = 'none';
       captureBtn.style.display = 'none';
+      backBtn.style.display = 'inline-block';
 
-      // Show status text
+      // Show uploading text
       statusText.textContent = "Uploading...";
       statusText.style.display = 'block';
 
-      // Prepare upload to Google Drive
       const base64Data = dataUrl.split(',')[1];
-
       const formData = new FormData();
       formData.append('data', base64Data);
       formData.append('mimetype', 'image/png');
       formData.append('filename', 'captured_' + Date.now() + '.png');
 
-      // Use fetch to stay on the same page (no redirect!)
       fetch('https://script.google.com/macros/s/AKfycbzeU2-WPTAYC3SRJXforWPOB9GMMbsGzonzlrPGzx4DE1CL5EW0PR2jwieCaZNYIJjM9A/exec', {
         method: 'POST',
         body: formData
@@ -143,6 +182,15 @@
       .catch(err => {
         statusText.textContent = "❌ Upload failed: " + err;
       });
+    });
+
+    // Reset back to camera mode
+    backBtn.addEventListener('click', () => {
+      snapshot.style.display = 'none';
+      video.style.display = 'block';
+      captureBtn.style.display = 'inline-block';
+      backBtn.style.display = 'none';
+      statusText.style.display = 'none';
     });
   </script>
 </body>
