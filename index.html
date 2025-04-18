@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Camera with Crosshair</title>
+  <title>Camera with Crosshair and Save</title>
   <style>
     body, html {
       margin: 0;
@@ -95,13 +95,15 @@
       const ctx = canvas.getContext('2d');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
+
+      // Draw the video frame
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
       // Draw crosshair
       const cx = canvas.width / 2;
       const cy = canvas.height / 2;
       ctx.strokeStyle = 'red';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 4;
 
       ctx.beginPath();
       ctx.moveTo(0, cy);
@@ -113,28 +115,12 @@
       ctx.lineTo(cx, canvas.height);
       ctx.stroke();
 
-      // Convert to base64 string (without data URL prefix)
-      const imageData = canvas.toDataURL('image/png').split(',')[1];
-
-      // Upload to Google Apps Script
-      fetch('https://script.google.com/macros/s/AKfycbzeU2-WPTAYC3SRJXforWPOB9GMMbsGzonzlrPGzx4DE1CL5EW0PR2jwieCaZNYIJjM9A/exec', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          data: imageData,
-          mimetype: 'image/png',
-          filename: 'captured_image.png'
-        })
-      })
-      .then(response => response.json())
-      .then(result => {
-        alert("Image uploaded!\n" + result.message);
-      })
-      .catch(error => {
-        alert("Upload failed: " + error);
-      });
+      // Save the image locally
+      const imageDataURL = canvas.toDataURL("image/png");
+      const a = document.createElement('a');
+      a.href = imageDataURL;
+      a.download = 'photo_with_crosshair.png';
+      a.click();
     });
   </script>
 </body>
