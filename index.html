@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Camera with Crosshair</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #000;
+      text-align: center;
+    }
+
+    video, canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+    }
+
+    #overlay {
+      position: absolute;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+    }
+
+    .line {
+      position: absolute;
+      background: red;
+    }
+
+    #h-line {
+      top: 50%;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      transform: translateY(-1px);
+    }
+
+    #v-line {
+      left: 50%;
+      top: 0;
+      height: 100%;
+      width: 2px;
+      transform: translateX(-1px);
+    }
+
+    #capture {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 20px;
+      font-size: 18px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 2px solid white;
+      color: white;
+      cursor: pointer;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <video id="video" autoplay playsinline></video>
+  <div id="overlay">
+    <div id="h-line" class="line"></div>
+    <div id="v-line" class="line"></div>
+  </div>
+  <button id="capture">Take Picture</button>
+  <canvas id="canvas" style="display: none;"></canvas>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const captureBtn = document.getElementById('capture');
+
+    // Start rear camera
+    navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { exact: "environment" }
+      },
+      audio: false
+    }).then(stream => {
+      video.srcObject = stream;
+    }).catch(err => {
+      alert("Error accessing camera: " + err);
+    });
+
+    captureBtn.addEventListener('click', () => {
+      const ctx = canvas.getContext('2d');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Draw crosshair
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      ctx.strokeStyle = 'red';
+      ctx.lineWidth = 2;
+
+      ctx.beginPath();
+      ctx.moveTo(0, cy);
+      ctx.lineTo(canvas.width, cy);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(cx, 0);
+      ctx.lineTo(cx, canvas.height);
+      ctx.stroke();
+
+      // Convert to base64 string (without data URL prefix)
+      const imageData = canvas.toDataURL('image/png').split(',')[1];
+
+      // Upload to Google Apps Script
+      fetch('https://script.google.com/macros/s/AKfycbwDaRgpCTFwpIoADtnthG4gST2D-e3JBYMts9BAf2b0GVAlC1r2HrqGObKIsmFNwrDRwg/exec', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'image/png'
+        },
+        body: imageData
+      })
+      .then(response => response.text())
+      .then(result => {
+        alert("Image uploaded!\n" + result);
+      })
+      .catch(error => {
+        alert("Upload failed: " + error);
+      });
+    });
+  </script>
+</body>
+</html>
